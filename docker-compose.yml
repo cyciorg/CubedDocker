@@ -1,0 +1,41 @@
+version: "3.8"
+
+services:
+  minecraft:
+    image: cubeddocker
+    container_name: Minecraft
+    ports:
+      - "25566:25565"
+    environment:
+      MEMORY: "4G"
+      PROXY: "false"
+      VIEW_DISTANCE: 12
+      MAX_PLAYERS: 30
+      SERVER_NAME: "server1"
+      # Additional environment options
+      MOTD: "Welcome to My Minecraft Server"
+      PVP: "true"
+      ENABLE_COMMAND_BLOCK: "false"
+      SPAWN_PROTECTION: 16
+      DIFFICULTY: "easy"
+      MAX_WORLD_SIZE: 10000
+      ALLOW_NETHER: "true"
+      LEVEL_TYPE: "DEFAULT"
+      GENERATOR_SETTINGS: ""
+      ALLOW_END: "true"
+      ENFORCE_WHITELIST: "false"
+      ONLINE_MODE: "true"
+      SPAWN_ANIMALS: "true"
+      SPAWN_MONSTERS: "true"
+      SPAWN_NPCS: "true"
+      GENERATE_STRUCTURES: "true"
+      ALLOW_FLIGHT: "false"
+      LEVEL_SEED: ""
+      MAX_BUILD_HEIGHT: 256
+      # Add more environment options as needed
+    volumes:
+      - minecraft_servers:/minecraft/servers
+    restart: unless-stopped
+
+volumes:
+  minecraft_servers:
