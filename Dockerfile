@@ -42,9 +42,6 @@ RUN apt-get update && \
 # Ensure jq is executable
 RUN chmod +x /usr/bin/jq
 
-# Expose ports for Minecraft (default and query)
-EXPOSE $ports/tcp $ports/udp
-
 # Change ownership of files to the minecraft user
 RUN chown -R minecraft:minecraft /minecraft
 
