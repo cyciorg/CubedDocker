@@ -34,7 +34,7 @@ services:
       MAX_BUILD_HEIGHT: 256
       # Add more environment options as needed
     volumes:
-      - minecraft_servers:/minecraft/servers
+      - minecraft_servers:/minecraft/server
     restart: unless-stopped
 
 volumes:
