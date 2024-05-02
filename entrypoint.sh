@@ -1,9 +1,5 @@
 #!/bin/bash
 
-set -e  # Exit immediately if a command exits with a non-zero status
-set -u  # Treat unset variables as an error when performing parameter expansion
-set -o pipefail  # Exit if any command in a pipeline fails
-
 echo "Starting entrypoint.sh script..."
 
 # Set the server port from the environment variable, defaulting to 25565
@@ -12,10 +8,6 @@ echo "Server port: $SERVER_PORT"
 
 # Function to parse JSON responses
 jq_location="$(command -v jq)"
-if [ -z "$jq_location" ]; then
-    echo "Error: 'jq' command not found. Please install 'jq'." >&2
-    exit 1
-fi
 echo "jq is installed at: $jq_location"
 
 # Function to download the latest Paper or Waterfall JAR file based on the PROXY variable
@@ -28,27 +20,26 @@ download_server_jar() {
     fi
 
     local latestVersion
-    latestVersion=$(curl -sSL "$prefix/$project" | jq -r '.versions | map(select(. != "latest")) | .[-1]') || {
-        echo "Error: Failed to determine the latest version for $project" >&2
-        exit 1
-    }
+    latestVersion=$(curl -sSL "$prefix/$project" | jq -r '.versions | map(select(. != "latest")) | .[-1]')
 
-    local latestBuild
-    latestBuild=$(curl -sSL "$prefix/$project/versions/$latestVersion" | jq -r '.builds | .[-1]') || {
-        echo "Error: Failed to determine the latest build for $project version $latestVersion" >&2
-        exit 1
-    }
+    if [ -n "$latestVersion" ]; then
+        local latestBuild
+        latestBuild=$(curl -sSL "$prefix/$project/versions/$latestVersion" | jq -r '.builds | .[-1]')
 
-    local downloadName
-    downloadName="$project-$latestVersion-$latestBuild.jar"
-    local download_url="$prefix/$project/versions/$latestVersion/builds/$latestBuild/downloads/$downloadName"
+        if [ -n "$latestBuild" ]; then
+            local downloadName
+            downloadName="$project-$latestVersion-$latestBuild.jar"
+            local download_url="$prefix/$project/versions/$latestVersion/builds/$latestBuild/downloads/$downloadName"
 
-    echo "Downloading $project JAR version $latestVersion (build $latestBuild)..."
-    curl -sSL -o "server.jar" "$download_url" || {
-        echo "Error: Failed to download $project JAR version $latestVersion (build $latestBuild)" >&2
-        exit 1
-    }
-    echo "Downloaded $project JAR version $latestVersion (build $latestBuild)"
+            echo "Downloading $project JAR version $latestVersion (build $latestBuild)..."
+            curl -sSL -o "server.jar" "$download_url"
+            echo "Downloaded $project JAR version $latestVersion (build $latestBuild)"
+        else
+            echo "Error: Failed to determine latest build for $project version $latestVersion"
+        fi
+    else
+        echo "Error: Failed to determine latest version for $project"
+    fi
 }
 
 # Function to update server.properties
@@ -59,12 +50,7 @@ update_server_properties() {
 
     if [ -f "$server_properties" ]; then
         echo "DEBUG: Server properties file exists"
-        while IFS='=' read -r key value
-        do
-            if [[ ! -z "${!key}" ]]; then
-                sed -i "s|^\($key=\).*|\1${!key}|" "$server_properties"
-            fi
-        done < <(grep -v '^#' "$server_properties" | grep -v '^$')
+        jq . "$server_properties" > "$server_properties.tmp" && mv "$server_properties.tmp" "$server_properties"
         echo "DEBUG: Server properties updated successfully"
     else
         echo "DEBUG: Server properties file does not exist. Creating new file..."
@@ -135,19 +121,13 @@ EOF
 # Function to start the Minecraft server within screen
 start_minecraft_server() {
     echo "Starting Minecraft server..."
-    screen -dmS minecraft java -Xmx${MEMORY} -Xms${MEMORY} -jar server.jar nogui || {
-        echo "Error: Failed to start Minecraft server" >&2
-        exit 1
-    }
+    screen -dmS minecraft java -Xmx${MEMORY} -Xms${MEMORY} -jar server.jar nogui
     echo "Minecraft server started."
 }
 
 # Accept the EULA if not already accepted
 if [ ! -f "eula.txt" ]; then
-    echo "eula=true" >"eula.txt" || {
-        echo "Error: Failed to accept EULA" >&2
-        exit 1
-    }
+    echo "eula=true" >"eula.txt"
 fi
 
 # Set the memory limit for the JVM
@@ -177,26 +157,17 @@ JVM_OPTS="$JVM_OPTS \
     -Daikars.new.flags=true"
 
 # Download the appropriate server JAR based on the PROXY option
-download_server_jar || {
-    echo "Error: Failed to download server JAR" >&2
-    exit 1
-}
+download_server_jar
 
 # Add a delay for 5 seconds
 sleep 5
 
 # Update server.properties with environment variables
-update_server_properties || {
-    echo "Error: Failed to update server.properties" >&2
-    exit 1
-}
+update_server_properties
 
 echo "Entrypoint script execution completed."
 
 # Start the Minecraft server
-start_minecraft_server || {
-    echo "Error: Failed to start Minecraft server" >&2
-    exit 1
-}
+start_minecraft_server
 
 tail -f /dev/null
