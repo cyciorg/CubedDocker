@@ -19,7 +19,7 @@ version: "3.8"
 
 services:
   minecraft:
-    image: cubeddocker
+    image: phlcyci/cubeddocker
     container_name: Minecraft
     ports:
       - "25565:25565"
@@ -113,3 +113,11 @@ screen -x minecraft
 ```
 
 Replace <ServiceName_or_ID> with the name or ID of your Docker service.
+
+## Plugins
+
+To add plugins to your Minecraft instance repeat the following
+```yaml
+volumes:
+  - ./path/to/your/plugins:/minecraft/server/plugins
+```
