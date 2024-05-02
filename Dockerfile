@@ -1,9 +1,9 @@
 # Stage 1: Build stage
-FROM eclipse-temurin:17-jdk AS builder
+FROM eclipse-temurin:21 AS builder
 
 # Install necessary packages for building
 RUN apt-get update && \
-    apt-get install -y curl && \
+    apt-get install -y curl screen && \
     rm -rf /var/lib/apt/lists/*
 
 # Download and install jq
@@ -13,40 +13,43 @@ RUN curl -L -o /usr/bin/jq https://github.com/stedolan/jq/releases/download/jq-1
 # Set up the Minecraft server directory
 WORKDIR /minecraft/server
 
-# Copy the entry point script
-COPY entrypoint.sh /minecraft/server/entrypoint.sh
+# Copy entrypoint script
+COPY entrypoint.sh .
 
-# Set the permissions of entrypoint.sh
-RUN chmod +x ./entrypoint.sh
+# Set permissions for the entrypoint script
+RUN chmod +x entrypoint.sh
 
 # Stage 2: Final image
-FROM eclipse-temurin:17-jdk
-
-# Create a non-root user to run the Minecraft server
-RUN groupadd -r minecraft && useradd -r -g minecraft minecraft
-
-# Set up the Minecraft server directory
-WORKDIR /minecraft/server
-
-# Copy the entry point script from the builder stage
-COPY --from=builder /minecraft/server/entrypoint.sh .
+FROM eclipse-temurin:21
 
 # Install jq in the final image
 RUN apt-get update && \
-    apt-get install -y jq && \
+    apt-get install -y jq screen && \
     rm -rf /var/lib/apt/lists/*
 
 # Ensure jq is executable
 RUN chmod +x /usr/bin/jq
 
-# Change ownership of files to the minecraft user
-RUN chown -R minecraft:minecraft /minecraft
+# Create minecraft user and group
+RUN groupadd -r minecraft && useradd -r -g minecraft minecraft
+
+# Set up the Minecraft server directory
+WORKDIR /minecraft/server
+
+# Copy entrypoint script from the builder stage
+COPY --from=builder /minecraft/server/entrypoint.sh .
+
+# Set permissions for the entrypoint script
+RUN chmod +x entrypoint.sh
+
+# Set health check command
+HEALTHCHECK --interval=1m --timeout=10s CMD curl -f http://localhost:$SERVER_PORT/ || exit 1
+
+# Ensure correct permissions for the Minecraft server directory
+RUN chown -R minecraft:minecraft /minecraft/server
 
 # Switch to the minecraft user
 USER minecraft
 
-# Set the permissions of entrypoint.sh
-RUN chmod +x ./entrypoint.sh
-
 # Set the entry point to start the Minecraft server
-ENTRYPOINT ["entrypoint.sh"]
+CMD ["sh", "entrypoint.sh"]
