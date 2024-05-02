@@ -42,9 +42,6 @@ COPY --from=builder /minecraft/server/entrypoint.sh .
 # Set permissions for the entrypoint script
 RUN chmod +x entrypoint.sh
 
-# Set health check command
-HEALTHCHECK --interval=1m --timeout=10s CMD curl -f http://localhost:$SERVER_PORT/ || exit 1
-
 # Ensure correct permissions for the Minecraft server directory
 RUN chown -R minecraft:minecraft /minecraft/server
 
